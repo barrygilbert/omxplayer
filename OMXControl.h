@@ -6,6 +6,8 @@
 #include "OMXClock.h"
 #include "OMXPlayerAudio.h"
 #include "OMXPlayerSubtitles.h"
+#include "guilib/Geometry.h"
+
 
 
 #define MIN_RATE (1)
@@ -37,7 +39,7 @@ protected:
 public:
   OMXControl();
   ~OMXControl();
-  int init(OMXClock *m_av_clock, OMXPlayerAudio *m_player_audio, OMXPlayerSubtitles *m_player_subtitles, OMXReader *m_omx_reader, std::string& dbus_name);
+  int init(OMXClock *m_av_clock, OMXPlayerAudio *m_player_audio, OMXPlayerSubtitles *m_player_subtitles, OMXReader *m_omx_reader, std::string& dbus_name, int ppid,CRect dst_rect, int pause);
   OMXControlResult getEvent();
   void dispatch();
 private:
@@ -51,4 +53,7 @@ private:
   DBusHandlerResult dbus_respond_boolean(DBusMessage *m, int b);
   DBusHandlerResult dbus_respond_string(DBusMessage *m, const char *text);
   DBusHandlerResult dbus_respond_array(DBusMessage *m, const char *array[], int size);
+  int ourppid;
+  CRect our_dst_rect;
+  int our_pause;
 };
