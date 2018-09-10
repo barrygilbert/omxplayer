@@ -724,7 +724,7 @@ int main(int argc, char *argv[])
     { "sid",          required_argument,  NULL,          't' },
     { "pos",          required_argument,  NULL,          'l' },    
     { "blank",        optional_argument,  NULL,          'b' },
-    { "Pause",        no_argument,        NULL,          'P' },
+    { "pause",        no_argument,        NULL,          'P' },
     { "font",         required_argument,  NULL,          font_opt },
     { "italic-font",  required_argument,  NULL,          italic_font_opt },
     { "font-size",    required_argument,  NULL,          font_size_opt },
