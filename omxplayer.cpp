@@ -121,6 +121,7 @@ bool              m_gen_log             = false;
 bool              m_loop                = false;
 bool              m_pause_at_end        = false;
 int               m_pause_at_start_cnt  = 0;
+
 enum{ERROR=-1,SUCCESS,ONEBYTE};
 
 void sig_handler(int s)
