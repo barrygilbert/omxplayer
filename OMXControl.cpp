@@ -862,6 +862,7 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
         CLog::Log(LOGWARNING, "PlayPause-%s",astr);
         dbus_respond_string(m, astr);
       }
+      else dbus_respond_ok(m);
     }
     else dbus_respond_ok(m);
     return KeyConfig::ACTION_PLAYPAUSE;
