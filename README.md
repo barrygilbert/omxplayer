@@ -112,6 +112,8 @@ Usage: omxplayer [OPTIONS] [FILE]
         --user-agent 'ua'       Send specified User-Agent as part of HTTP requests
         --lavfdopts 'opts'      Options passed to libavformat, e.g. 'probesize:250000,...'
         --avdict 'opts'         Options passed to demuxer, e.g., 'rtsp_transport:tcp,...'
+        --pause                 Starts the video paused
+        --pause-at-end          Automatically pauses the video at end (--loop required)
 
 For example:
 
