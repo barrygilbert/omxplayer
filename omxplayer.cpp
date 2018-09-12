@@ -121,6 +121,7 @@ bool              m_gen_log             = false;
 bool              m_loop                = false;
 bool              m_pause_at_end        = false;
 int               m_pause_at_start_cnt  = 0;
+bool              m_detect_flicker      = false;
 
 enum{ERROR=-1,SUCCESS,ONEBYTE};
 
@@ -692,6 +693,7 @@ int main(int argc, char *argv[])
   const int aspect_mode_opt = 0x212;
   const int crop_opt        = 0x213;
   const int pause_at_end_opt = 0x214;
+  const int detect_flicker_opt = 0x215;
   const int http_cookie_opt = 0x300;
   const int http_user_agent_opt = 0x301;
   const int lavfdopts_opt   = 0x400;
@@ -760,6 +762,7 @@ int main(int argc, char *argv[])
     { "user-agent",   required_argument,  NULL,          http_user_agent_opt },
     { "lavfdopts",    required_argument,  NULL,          lavfdopts_opt },
     { "avdict",       required_argument,  NULL,          avdict_opt },
+    { "detect-flicker", no_argument,      NULL,          detect_flicker_opt },
     { 0, 0, 0, 0 }
   };
 
@@ -1015,6 +1018,9 @@ int main(int argc, char *argv[])
       case pause_at_end_opt:
         m_pause_at_end = true;
         break;
+      case detect_flicker_opt:
+        m_detect_flicker = true;
+        break;
       case 'b':
         m_blank_background = optarg ? strtoul(optarg, NULL, 0) : 0xff000000;
         break;
@@ -1134,7 +1140,7 @@ int main(int argc, char *argv[])
   }
   
   /* Is omxplayer already running with overlapping destination video ? */
-  if (is_omx_overlap_init(&thispid,&count)) { /* Creates maintenance file */
+  if (m_detect_flicker && is_omx_overlap_init(&thispid,&count)) { /* Creates maintenance file */
     //printf("Found overlapping destinations video. Our Pid: %d, number of instances running %d\n",thispid, count);
   }
 
@@ -1155,7 +1161,10 @@ int main(int argc, char *argv[])
     &m_player_subtitles,
     &m_omx_reader,
     m_dbus_name,
-    thispid, m_config_video.dst_rect,m_Pause);
+    thispid,
+    m_config_video.dst_rect,
+    m_Pause,
+    m_detect_flicker);
   if (false == m_no_keys)
   {
     m_keyboard = new Keyboard();
@@ -2020,7 +2029,8 @@ do_exit:
   g_OMX.Deinitialize();
   g_RBP.Deinitialize();
   
-  cleanup_omxfile(thispid); /* Clean up omxinstances.txt */
+  if ( m_detect_flicker )
+    cleanup_omxfile(thispid); /* Clean up omxinstances.txt */
   
   printf("have a nice day ;)\n");
 

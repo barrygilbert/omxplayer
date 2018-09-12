@@ -114,6 +114,7 @@ Usage: omxplayer [OPTIONS] [FILE]
         --avdict 'opts'         Options passed to demuxer, e.g., 'rtsp_transport:tcp,...'
         --pause                 Starts the video paused
         --pause-at-end          Automatically pauses the video at end (--loop required)
+        --detect-flicker        Turns on flicker detection
 
 For example:
 

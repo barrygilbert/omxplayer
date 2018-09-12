@@ -39,7 +39,7 @@ protected:
 public:
   OMXControl();
   ~OMXControl();
-  int init(OMXClock *m_av_clock, OMXPlayerAudio *m_player_audio, OMXPlayerSubtitles *m_player_subtitles, OMXReader *m_omx_reader, std::string& dbus_name, int ppid,CRect dst_rect, int pause);
+  int init(OMXClock *m_av_clock, OMXPlayerAudio *m_player_audio, OMXPlayerSubtitles *m_player_subtitles, OMXReader *m_omx_reader, std::string& dbus_name, int ppid, CRect dst_rect, int pause, bool m_detect_flicker);
   OMXControlResult getEvent();
   void dispatch();
 private:
@@ -56,4 +56,5 @@ private:
   int ourppid;
   CRect our_dst_rect;
   int our_pause;
+  bool detect_flicker;
 };

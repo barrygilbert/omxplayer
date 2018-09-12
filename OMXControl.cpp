@@ -142,13 +142,14 @@ OMXControl::~OMXControl()
     dbus_disconnect();
 }
 
-int OMXControl::init(OMXClock *m_av_clock, OMXPlayerAudio *m_player_audio, OMXPlayerSubtitles *m_player_subtitles, OMXReader *m_omx_reader, std::string& dbus_name,int ppid,CRect dst_rect, int paused)
+int OMXControl::init(OMXClock *m_av_clock, OMXPlayerAudio *m_player_audio, OMXPlayerSubtitles *m_player_subtitles, OMXReader *m_omx_reader, std::string& dbus_name,int ppid,CRect dst_rect, int paused, bool m_detect_flicker)
 {
   int ret = 0;
   clock     = m_av_clock;
   audio     = m_player_audio;
   subtitles = m_player_subtitles;
   reader    = m_omx_reader;
+  detect_flicker = m_detect_flicker;
 
   ourppid = ppid;
   our_dst_rect = dst_rect;
@@ -858,7 +859,7 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
     our_pause = !our_pause;
     if (!our_pause){ /* We are going to play, releasing the pause */
       astr[0]=0;
-      if (ctl_update_omxfile(ourppid,our_dst_rect,astr)) { /* Update omxinstances.txt and check for overlaps  */
+      if (detect_flicker && ctl_update_omxfile(ourppid,our_dst_rect,astr)) { /* Update omxinstances.txt and check for overlaps  */
         CLog::Log(LOGWARNING, "PlayPause-%s",astr);
         dbus_respond_string(m, astr);
       }
@@ -1017,7 +1018,7 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
     {
       char localStr[256];
       sscanf(win, "%f %f %f %f", &our_dst_rect.x1, &our_dst_rect.y1, &our_dst_rect.x2, &our_dst_rect.y2);
-      if (ctl_update_omxfile(ourppid,our_dst_rect,astr)) { /* Update omxinstances.txt and check for overlaps */
+      if (detect_flicker && ctl_update_omxfile(ourppid,our_dst_rect,astr)) { /* Update omxinstances.txt and check for overlaps */
         localStr[0]=0;
         strcpy(localStr,win);
         strcat(localStr,"-");
