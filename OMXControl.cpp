@@ -13,6 +13,56 @@
 #include "OMXControl.h"
 #include "KeyConfig.h"
 
+const char omxinstances[] = "/home/benja/app/logs/omxinstances.txt";
+#define maxomxplayer 8
+
+/* Update omxinstances.txt and check for overlaps */
+bool ctl_update_omxfile(int ppid,CRect &destRect, char *errorStr)
+{
+  /* We need to find our PID and update it with new coordinates */
+  FILE *fp;
+  CRect orig_dst_rect;
+  char line[32],line_found[maxomxplayer][32];
+  int count, apid, index = -1, i;
+  bool overlap = false;
+  
+  count = 0;
+  fp = fopen(omxinstances, "r+");
+  if(!fp) {
+    printf("Did not find %s but we need to update-Error!!!\n", omxinstances);
+  }
+  else {
+    /* let's find the other's omxplayer playback coordinates */
+    while (fgets (line, sizeof line, fp ) != NULL ) {/* read a line */
+      sscanf(line, "%d", &apid);
+      if (apid == ppid) {
+        index = count;
+        sprintf(line_found[index], "%d %d,%d,%d,%d\n", ppid,  (int)destRect.x1, (int)destRect.y1, (int)destRect.x2, (int)destRect.y2);
+      }
+      else {
+        if (count<maxomxplayer) strcpy(line_found[count], line); // should never have more than 8
+        sscanf(line, "%d %f,%f,%f,%f", &apid, &orig_dst_rect.x1, &orig_dst_rect.y1, &orig_dst_rect.x2, &orig_dst_rect.y2);
+        if (!(destRect.x1 >= orig_dst_rect.x2 || orig_dst_rect.x1 >= destRect.x2 || destRect.y1 >= orig_dst_rect.y2 || orig_dst_rect.y1 >= destRect.y2)) {
+          sprintf(errorStr,"OVERLAPPING VIDEO-PPID %d %d,%d,%d,%d & this %d %d,%d,%d,%d",apid,
+                  (int)orig_dst_rect.x1, (int)orig_dst_rect.y1, (int)orig_dst_rect.x2, (int)orig_dst_rect.y2,
+                  ppid,(int)destRect.x1, (int)destRect.y1, (int)destRect.x2, (int)destRect.y2);
+          overlap = true; /* found overlapping video for laumching scripts */
+        }
+      }
+      count ++;
+    }
+    fclose(fp);
+    if (index == -1) printf("Did not find our own pid %d in %s but we need to update-Error!!!\n",ppid, omxinstances);
+    if (count > 0) {
+      fp = fopen(omxinstances, "w"); /* Create a new empty file */
+      for (i=0;i<count;i++) {
+        fprintf(fp,line_found[i]);
+      }
+      fclose(fp);
+    }
+  }
+  return overlap;
+}
 
 void ToURI(const std::string& str, char *uri)
 {
@@ -50,7 +100,7 @@ void ToURI(const std::string& str, char *uri)
 
 void deprecatedMessage()
 {
-  CLog::Log(LOGWARNING, "DBus property access through direct method is deprecated. Use Get/Set methods instead.");
+ // CLog::Log(LOGWARNING, "DBus property access through direct method is deprecated. Use Get/Set methods instead.");
 }
 
 
@@ -92,14 +142,18 @@ OMXControl::~OMXControl()
     dbus_disconnect();
 }
 
-int OMXControl::init(OMXClock *m_av_clock, OMXPlayerAudio *m_player_audio, OMXPlayerSubtitles *m_player_subtitles, OMXReader *m_omx_reader, std::string& dbus_name)
+int OMXControl::init(OMXClock *m_av_clock, OMXPlayerAudio *m_player_audio, OMXPlayerSubtitles *m_player_subtitles, OMXReader *m_omx_reader, std::string& dbus_name,int ppid,CRect dst_rect, int paused, bool m_detect_flicker)
 {
   int ret = 0;
   clock     = m_av_clock;
   audio     = m_player_audio;
   subtitles = m_player_subtitles;
   reader    = m_omx_reader;
+  detect_flicker = m_detect_flicker;
 
+  ourppid = ppid;
+  our_dst_rect = dst_rect;
+  our_pause = paused;
   if (dbus_connect(dbus_name) < 0)
   {
     CLog::Log(LOGWARNING, "DBus connection failed, trying alternate");
@@ -207,6 +261,8 @@ OMXControlResult OMXControl::getEvent()
 
 OMXControlResult OMXControl::handle_event(DBusMessage *m)
 {
+  char astr[256];
+  
   //----------------------------DBus root interface-----------------------------
   //Methods:
   if (dbus_message_is_method_call(m, OMXPLAYER_DBUS_INTERFACE_ROOT, "Quit"))
@@ -656,6 +712,7 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
     }
 
     dbus_respond_string(m, status);
+    CLog::Log(LOGWARNING, "PlaybackStatus Pid %d %s", ourppid, status);
     deprecatedMessage();
     return KeyConfig::ACTION_BLANK;
   }
@@ -677,8 +734,6 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
     { // i.e. Get current volume
       dbus_error_free(&error);
       dbus_respond_double(m, audio->GetVolume());
-      deprecatedMessage();
-      return KeyConfig::ACTION_BLANK;
     }
     else
     {
@@ -689,9 +744,9 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
       }
       audio->SetVolume(volume);
       dbus_respond_double(m, volume);
-      deprecatedMessage();
-      return KeyConfig::ACTION_BLANK;
     }
+    deprecatedMessage();
+    return KeyConfig::ACTION_BLANK;
   }
   else if (dbus_message_is_method_call(m, DBUS_INTERFACE_PROPERTIES, "Mute"))
   {
@@ -790,6 +845,7 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
   }
   else if (dbus_message_is_method_call(m, OMXPLAYER_DBUS_INTERFACE_PLAYER, "Pause"))
   {
+    our_pause = true;
     dbus_respond_ok(m);
     return KeyConfig::ACTION_PAUSE;
   }
@@ -800,7 +856,16 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
   }
   else if (dbus_message_is_method_call(m, OMXPLAYER_DBUS_INTERFACE_PLAYER, "PlayPause"))
   {
-    dbus_respond_ok(m);
+    our_pause = !our_pause;
+    if (!our_pause){ /* We are going to play, releasing the pause */
+      astr[0]=0;
+      if (detect_flicker && ctl_update_omxfile(ourppid,our_dst_rect,astr)) { /* Update omxinstances.txt and check for overlaps  */
+        CLog::Log(LOGWARNING, "PlayPause-%s",astr);
+        dbus_respond_string(m, astr);
+      }
+      else dbus_respond_ok(m);
+    }
+    else dbus_respond_ok(m);
     return KeyConfig::ACTION_PLAYPAUSE;
   }
   else if (dbus_message_is_method_call(m, OMXPLAYER_DBUS_INTERFACE_PLAYER, "Stop"))
@@ -834,7 +899,6 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
   {
     DBusError error;
     dbus_error_init(&error);
-
     int64_t position;
     const char *oPath; // ignoring path right now because we don't have a playlist
     dbus_message_get_args(m, &error, DBUS_TYPE_OBJECT_PATH, &oPath, DBUS_TYPE_INT64, &position, DBUS_TYPE_INVALID);
@@ -857,7 +921,6 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
   {
     DBusError error;
     dbus_error_init(&error);
-
     int64_t alpha;
     const char *oPath; // ignoring path right now because we don't have a playlist
     dbus_message_get_args(m, &error, DBUS_TYPE_OBJECT_PATH, &oPath, DBUS_TYPE_INT64, &alpha, DBUS_TYPE_INVALID);
@@ -884,7 +947,6 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
     const char *aspectMode;
     const char *oPath; // ignoring path right now because we don't have a playlist
     dbus_message_get_args(m, &error, DBUS_TYPE_OBJECT_PATH, &oPath, DBUS_TYPE_STRING, &aspectMode, DBUS_TYPE_INVALID);
-
     // Make sure a value is sent for setting aspect mode
     if (dbus_error_is_set(&error))
     {
@@ -915,6 +977,7 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
   {
     int count = reader->SubtitleStreamCount();
     char** values = new char*[count];
+    //CLog::Log(LOGWARNING, "ListSubtitles Pid %d", ourppid);
 
     for (int i=0; i < count; i++)
     {
@@ -947,14 +1010,22 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
     // Make sure a value is sent for setting VideoPos
     if (dbus_error_is_set(&error))
     {
-      CLog::Log(LOGWARNING, "VideoPos D-Bus Error: %s", error.message );
       dbus_error_free(&error);
       dbus_respond_ok(m);
       return KeyConfig::ACTION_BLANK;
     }
     else
     {
-      dbus_respond_string(m, win);
+      char localStr[256];
+      sscanf(win, "%f %f %f %f", &our_dst_rect.x1, &our_dst_rect.y1, &our_dst_rect.x2, &our_dst_rect.y2);
+      if (detect_flicker && ctl_update_omxfile(ourppid,our_dst_rect,astr)) { /* Update omxinstances.txt and check for overlaps */
+        localStr[0]=0;
+        strcpy(localStr,win);
+        strcat(localStr,"-");
+        strcat(localStr,astr);
+        dbus_respond_string(m, localStr);
+      }
+      else dbus_respond_string(m, win);
       return OMXControlResult(KeyConfig::ACTION_MOVE_VIDEO, win);
     }
   }
@@ -970,7 +1041,6 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
     // Make sure a value is sent for setting SetVideoCropPos
     if (dbus_error_is_set(&error))
     {
-      CLog::Log(LOGWARNING, "SetVideoCropPos D-Bus Error: %s", error.message );
       dbus_error_free(&error);
       dbus_respond_ok(m);
       return KeyConfig::ACTION_BLANK;
@@ -995,7 +1065,6 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
   {
     int count = reader->AudioStreamCount();
     char** values = new char*[count];
-
     for (int i=0; i < count; i++)
     {
        asprintf(&values[i], "%d:%s:%s:%s:%s", i,
@@ -1019,7 +1088,6 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
   {
     int count = reader->VideoStreamCount();
     char** values = new char*[count];
-
     for (int i=0; i < count; i++)
     {
        asprintf(&values[i], "%d:%s:%s:%s:%s", i,
@@ -1046,7 +1114,6 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
 
     int index;
     dbus_message_get_args(m, &error, DBUS_TYPE_INT32, &index, DBUS_TYPE_INVALID);
-
     if (dbus_error_is_set(&error))
     {
       dbus_error_free(&error);
@@ -1107,7 +1174,6 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
   {
     DBusError error;
     dbus_error_init(&error);
-
     int action;
     dbus_message_get_args(m, &error, DBUS_TYPE_INT32, &action, DBUS_TYPE_INVALID);
 
