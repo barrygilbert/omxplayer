@@ -851,21 +851,22 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
   }
   else if (dbus_message_is_method_call(m, OMXPLAYER_DBUS_INTERFACE_PLAYER, "Play"))
   {
+    our_pause = false;
     dbus_respond_ok(m);
     return KeyConfig::ACTION_PLAY;
   }
   else if (dbus_message_is_method_call(m, OMXPLAYER_DBUS_INTERFACE_PLAYER, "PlayPause"))
   {
-    our_pause = !our_pause;
-    if (!our_pause){ /* We are going to play, releasing the pause */
+    if (our_pause){ /* We are going to play, releasing the pause */
       astr[0]=0;
       if (detect_flicker && ctl_update_omxfile(ourppid,our_dst_rect,astr)) { /* Update omxinstances.txt and check for overlaps  */
         CLog::Log(LOGWARNING, "PlayPause-%s",astr);
         dbus_respond_string(m, astr);
+    	return KeyConfig::ACTION_BLANK;
       }
-      else dbus_respond_ok(m);
     }
-    else dbus_respond_ok(m);
+    dbus_respond_ok(m);
+    our_pause = !our_pause;
     return KeyConfig::ACTION_PLAYPAUSE;
   }
   else if (dbus_message_is_method_call(m, OMXPLAYER_DBUS_INTERFACE_PLAYER, "Stop"))
@@ -1024,6 +1025,7 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
         strcat(localStr,"-");
         strcat(localStr,astr);
         dbus_respond_string(m, localStr);
+	return KeyConfig::ACTION_BLANK;
       }
       else dbus_respond_string(m, win);
       return OMXControlResult(KeyConfig::ACTION_MOVE_VIDEO, win);
