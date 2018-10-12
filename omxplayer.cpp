@@ -98,6 +98,7 @@ bool              m_centered            = false;
 bool              m_ghost_box           = true;
 unsigned int      m_subtitle_lines      = 3;
 bool              m_Pause               = false;
+bool              m_pause_at_start      = false;
 OMXReader         m_omx_reader;
 int               m_audio_index_use     = 0;
 OMXClock          *m_av_clock           = NULL;
@@ -894,6 +895,7 @@ int main(int argc, char *argv[])
         break;
       case 'P':
         m_Pause=true;
+        m_pause_at_start = true;
         break;
             
       case no_osd_opt:
@@ -1881,17 +1883,19 @@ int main(int argc, char *argv[])
       }
       else if (m_Pause || audio_fifo_low || video_fifo_low)
       {
-        if (!m_av_clock->OMXIsPaused()&& ((m_pause_at_start_cnt>1)&& (stamp>0)))
+        if (!m_av_clock->OMXIsPaused() && (!m_pause_at_start || ((m_pause_at_start_cnt>0)&& (stamp>0))))
         {
           if (!m_Pause)
             m_threshold = std::min(2.0f*m_threshold, 16.0f);
           CLog::Log(LOGDEBUG, "Pause %.2f,%.2f (%d,%d,%d,%d) %.2f\n", audio_fifo, video_fifo, audio_fifo_low, video_fifo_low, audio_fifo_high, video_fifo_high, m_threshold);
           m_av_clock->OMXPause();
         }
-        if (!m_pause_at_start_cnt) {
-          m_av_clock->OMXResume();
+        if ( m_pause_at_start ) {
+          if (m_pause_at_start_cnt == 0) {
+            m_av_clock->OMXResume();
+          }
+          m_pause_at_start_cnt ++;
         }
-        m_pause_at_start_cnt ++;
       }
     }
     if (!sentStarted)
