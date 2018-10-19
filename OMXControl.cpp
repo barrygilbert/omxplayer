@@ -60,6 +60,9 @@ bool ctl_update_omxfile(int ppid,CRect &destRect, char *errorStr)
       }
       fclose(fp);
     }
+    if ( destRect.x1 < 0 || destRect.x2 < 0 || destRect.y1 < 0 || destRect.y2 < 0 ) {
+      overlap = false;
+    }
   }
   return overlap;
 }
@@ -862,7 +865,7 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
       if (detect_flicker && ctl_update_omxfile(ourppid,our_dst_rect,astr)) { /* Update omxinstances.txt and check for overlaps  */
         CLog::Log(LOGWARNING, "PlayPause-%s",astr);
         dbus_respond_string(m, astr);
-    	return KeyConfig::ACTION_BLANK;
+        return KeyConfig::ACTION_BLANK;
       }
     }
     dbus_respond_ok(m);
@@ -1019,13 +1022,10 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
     {
       char localStr[256];
       sscanf(win, "%f %f %f %f", &our_dst_rect.x1, &our_dst_rect.y1, &our_dst_rect.x2, &our_dst_rect.y2);
+      astr[0]=0;
       if (detect_flicker && ctl_update_omxfile(ourppid,our_dst_rect,astr)) { /* Update omxinstances.txt and check for overlaps */
-        localStr[0]=0;
-        strcpy(localStr,win);
-        strcat(localStr,"-");
-        strcat(localStr,astr);
-        dbus_respond_string(m, localStr);
-	return KeyConfig::ACTION_BLANK;
+        dbus_respond_string(m, astr);
+        return KeyConfig::ACTION_BLANK;
       }
       else dbus_respond_string(m, win);
       return OMXControlResult(KeyConfig::ACTION_MOVE_VIDEO, win);
