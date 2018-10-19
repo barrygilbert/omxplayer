@@ -1060,6 +1060,12 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
   }
   else if (dbus_message_is_method_call(m, OMXPLAYER_DBUS_INTERFACE_PLAYER, "UnHideVideo"))
   {
+    astr[0]=0;
+    if (detect_flicker && ctl_update_omxfile(ourppid,our_dst_rect,astr)) { /* Update omxinstances.txt and check for overlaps  */
+      CLog::Log(LOGWARNING, "UnHideVideo-%s",astr);
+      dbus_respond_string(m, astr);
+      return KeyConfig::ACTION_BLANK;
+    }
     dbus_respond_ok(m);
     return KeyConfig::ACTION_UNHIDE_VIDEO;
   }
