@@ -1890,12 +1890,12 @@ int main(int argc, char *argv[])
           CLog::Log(LOGDEBUG, "Pause %.2f,%.2f (%d,%d,%d,%d) %.2f\n", audio_fifo, video_fifo, audio_fifo_low, video_fifo_low, audio_fifo_high, video_fifo_high, m_threshold);
           m_av_clock->OMXPause();
         }
-        if ( m_pause_at_start ) {
-          if (m_pause_at_start_cnt == 0) {
-            m_av_clock->OMXResume();
-          }
-          m_pause_at_start_cnt ++;
-        }
+	if ( m_pause_at_start ) {
+	  if (m_pause_at_start_cnt == 0) {
+	    m_av_clock->OMXResume();
+	  }
+	  m_pause_at_start_cnt ++;
+	}
       }
     }
     if (!sentStarted)
