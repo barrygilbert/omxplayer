@@ -564,7 +564,8 @@ bool is_omx_overlap_init(int *whichPid, int *count)
   pclose(process_listing);
   regfree(&re);
   if (counter>maxomxplayer) printf("Found %d omxplayer running\n",counter);
-  sscanf(line_found[counter-1], "%d", &thispid); /* this process is always last in the list */
+  //sscanf(line_found[counter-1], "%d", &thispid); /* this process is always last in the list */
+  thispid = getppid();
   *whichPid = thispid;
   *count = counter; /* for later clean up of omxinstances.txt file */
   if (counter>1) /* 1 being this and we are always the highest instance */

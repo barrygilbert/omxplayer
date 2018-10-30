@@ -1027,7 +1027,7 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
         dbus_respond_string(m, astr);
         return KeyConfig::ACTION_BLANK;
       }
-      else dbus_respond_string(m, win);
+      else dbus_respond_ok(m);
       return OMXControlResult(KeyConfig::ACTION_MOVE_VIDEO, win);
     }
   }
@@ -1055,6 +1055,13 @@ OMXControlResult OMXControl::handle_event(DBusMessage *m)
   }
   else if (dbus_message_is_method_call(m, OMXPLAYER_DBUS_INTERFACE_PLAYER, "HideVideo"))
   {
+    CRect hidden_rect;
+    hidden_rect.x1 = -100;
+    hidden_rect.x2 = -100;
+    hidden_rect.y1 = -100;
+    hidden_rect.y2 = -100;
+    astr[0] = 0;
+    ctl_update_omxfile(ourppid, hidden_rect, astr);
     dbus_respond_ok(m);
     return KeyConfig::ACTION_HIDE_VIDEO;
   }
